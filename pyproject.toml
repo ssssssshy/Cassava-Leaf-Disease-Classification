@@ -1,0 +1,32 @@
+[project]
+name = "imbalance-cv-pipeline"
+version = "0.1.0"
+description = "CV pipeline for imbalanced classification using Inception v3 and MobileNetV3"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "albumentations>=2.0.8",
+    "matplotlib>=3.11.0",
+    "mlflow>=3.14.0",
+    "numpy>=2.5.1",
+    "opencv-python-headless>=5.0.0.93",
+    "pandas>=2.3.3",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.0",
+    "seaborn>=0.13.2",
+    "torchmetrics>=1.9.0",
+    "tqdm>=4.68.3",
+    "torch",
+    "torchvision",
+    'wandb'
+
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu121" }
+torchvision = { index = "pytorch-cu121" }

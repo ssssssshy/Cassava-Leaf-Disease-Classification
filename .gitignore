@@ -1,0 +1,13 @@
+# Окружение
+.venv/
+__pycache__/
+*.pyc
+
+# Данные
+data/
+!data/.gitkeep
+
+# Логи и веса
+wandb/
+*.pt
+*.pth

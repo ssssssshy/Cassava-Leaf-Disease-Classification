@@ -44,5 +44,5 @@ def load_config(config_path: str | Path) -> AppConfig:
 
 
 if __name__ == "__main__":
-    config = load_config("config.yaml")
+    config = load_config("configs/baseline.yaml")
     print(config)

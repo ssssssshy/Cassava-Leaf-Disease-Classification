@@ -1,8 +1,10 @@
 import argparse
+import os
 import random
 
 import numpy as np
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
 import wandb
 
 from src.config import load_config
@@ -12,6 +14,7 @@ from src.metrics import CassavaMetrics
 from src.models import build_model
 from src.trainer import ModelTrainer
 from src.utils import EarlyStopping
+from src.distributed import setup_ddp, cleanup_ddp, is_main_process
 
 
 def set_seed(seed: int) -> None:
@@ -36,20 +39,36 @@ def main():
     args = parse_args()
     cfg = load_config(args.config)
 
-    set_seed(cfg.train.seed)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Устройство: {device}")
-
-    wandb.init(
-        project=cfg.wandb.project_name,
-        name=cfg.wandb.run_name,
-        config=cfg.model_dump(),
+    use_ddp = (
+        "RANK" in os.environ
+        and "WORLD_SIZE" in os.environ
+        and int(os.environ.get("WORLD_SIZE", "1")) > 1
     )
 
-    train_loader, val_loader = get_dataloaders(cfg)
+    if use_ddp:
+        rank, local_rank, world_size = setup_ddp()
+        device = torch.device(f"cuda:{local_rank}")
+    else:
+        rank, world_size = 0, 1
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = build_model(cfg)
+    set_seed(cfg.train.seed)
+
+    if is_main_process(rank):
+        print(f"Устройство: {device} | DDP: {use_ddp} | World size: {world_size}")
+        wandb.init(
+            project=cfg.wandb.project_name,
+            name=cfg.wandb.run_name,
+            config=cfg.model_dump(),
+        )
+
+    train_loader, val_loader = get_dataloaders(
+        cfg, rank=rank, world_size=world_size, use_ddp=use_ddp
+    )
+
+    model = build_model(cfg).to(device)
+    if use_ddp:
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 
     criterion = FocalLoss(gamma=cfg.train.focal_gamma)
 
@@ -76,14 +95,19 @@ def main():
         metrics=metrics,
         device=device,
         save_path="weights/best_model.pth",
+        rank=rank,
+        world_size=world_size,
     )
 
     history = trainer.fit(epochs=cfg.train.epochs, early_stopper=early_stopper)
 
-    print("\nОбучение завершено")
-    print(f"Лучший Val F1: {max(history['val_f1']):.4f}")
+    if is_main_process(rank):
+        print("\nОбучение завершено")
+        print(f"Лучший Val F1: {max(history['val_f1']):.4f}")
+        wandb.finish()
 
-    wandb.finish()
+    if use_ddp:
+        cleanup_ddp()
 
 
 if __name__ == "__main__":

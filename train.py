@@ -73,10 +73,14 @@ def main():
     criterion = FocalLoss(gamma=cfg.train.focal_gamma)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=cfg.train.epochs
-    )
 
+    """scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=cfg.train.epochs
+    )"""
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="max", factor=0.5, patience=2
+    )
     metrics = CassavaMetrics(cfg, device=device)
 
     early_stopper = EarlyStopping(

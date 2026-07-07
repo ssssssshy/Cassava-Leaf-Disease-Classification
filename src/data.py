@@ -43,8 +43,11 @@ def get_transforms(img_size):
             A.RandomResizedCrop(size=(img_size, img_size), scale=(0.8, 1.0)),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
-            A.ShiftScaleRotate(
-                shift_limit=0.1, scale_limit=0.15, rotate_limit=60, p=0.5
+            A.Affine(
+                scale=(0.85, 1.15),
+                translate_percent=(-0.1, 0.1),
+                rotate=(-60, 60),
+                p=0.5,
             ),
             A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, p=0.4),
             A.CoarseDropout(

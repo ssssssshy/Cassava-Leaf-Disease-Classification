@@ -18,8 +18,9 @@ dependencies = [
     "tqdm>=4.68.3",
     "torch",
     "torchvision",
-    'wandb'
-
+    'wandb',
+    "kaggle>=2.2.3",
+    "ipykernel>=7.3.0",
 ]
 
 [[tool.uv.index]]

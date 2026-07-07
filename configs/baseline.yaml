@@ -1,0 +1,18 @@
+path:
+  train_csv: "data/raw/train.csv"
+  img_dir: "data/raw/train_images"
+
+model:
+  name: "inception_v3"
+  num_classes: 5
+  pretrained: true
+
+train:
+  batch_size: 32
+  epochs: 15
+  lr: 1.0e-3
+  focal_gamma: 2.0
+
+wandb:
+  project_name: "VisionShift-Cassava"
+  run_name: "inception-focal-loss-v1"

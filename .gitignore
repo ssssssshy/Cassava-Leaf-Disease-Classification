@@ -6,6 +6,7 @@ __pycache__/
 # Данные
 data/
 !data/.gitkeep
+.gemini/
 
 # Логи и веса
 wandb/

@@ -41,6 +41,7 @@ class AppConfig(BaseModel):
     model: ModelConfig
     train: TrainConfig
     wandb: WandbConfig
+    early_stopping: EarlyStoppingConfig
 
 
 def load_config(config_path: str | Path) -> AppConfig:

@@ -1,8 +1,13 @@
 class EarlyStopping:
-    def __init__(self, patience, min_delta, mode):
+    def __init__(self, patience: int, min_delta: float, mode: str = "max"):
+        assert mode in ("max", "min"), (
+            f"mode должен быть 'max' или 'min', получено: {mode}"
+        )
+
         self.patience = patience
         self.min_delta = min_delta
         self.mode = mode
+
         self.counter = 0
         self.best_score = None
         self.early_stop = False
@@ -20,7 +25,7 @@ class EarlyStopping:
             if self.counter >= self.patience:
                 self.early_stop = True
 
-    def _is_better(self, score, best):
+    def _is_better(self, score: float, best: float) -> bool:
         if self.mode == "max":
             return score > best + self.min_delta
         return score < best - self.min_delta

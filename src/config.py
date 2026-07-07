@@ -19,6 +19,10 @@ class TrainConfig(BaseModel):
     epochs: int
     lr: float
     focal_gamma: float
+    seed: int
+    img_size: int
+    num_workers: int
+    val_size: float
 
 
 class WandbConfig(BaseModel):

@@ -12,6 +12,10 @@ train:
   epochs: 15
   lr: 1.0e-3
   focal_gamma: 2.0
+  seed: 42
+  img_size: 256
+  num_workers: 4
+  val_size: 0.2
 
 wandb:
   project_name: "VisionShift-Cassava"

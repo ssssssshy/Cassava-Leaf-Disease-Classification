@@ -24,4 +24,4 @@ early_stopping:
 
 wandb:
   project_name: "VisionShift-Cassava"
-  run_name: "run-with-ReduceLROnPlateau"
+  run_name: "run-with-ReduceLROnPlateau2"

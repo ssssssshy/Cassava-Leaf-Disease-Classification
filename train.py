@@ -79,7 +79,10 @@ def main():
     )"""
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="max", factor=0.5, patience=2
+        optimizer,
+        mode="min",  # Следим за loss, он обычно меньше скачет
+        factor=0.5,
+        patience=1,  # Снижаем LR уже после 2-х неудачных эпох
     )
     metrics = CassavaMetrics(cfg, device=device)
 

@@ -25,6 +25,12 @@ class TrainConfig(BaseModel):
     val_size: float
 
 
+class EarlyStoppingConfig(BaseModel):
+    patience: int = Field(default=5)
+    min_delta: float = Field(default=0.0)
+    mode: str = Field(default="max")
+
+
 class WandbConfig(BaseModel):
     project_name: str
     run_name: str

@@ -33,8 +33,8 @@ def test_custom_dataset(dummy_data):
 
     image, label = dataset[0]
 
-    assert isinstance(image, np.ndarray)
-    assert image.shape == (300, 300, 3)
+    assert isinstance(image, torch.Tensor)
+    assert image.shape == (3, 300, 300)
     assert isinstance(label, torch.Tensor)
     assert label.item() == 3
 
@@ -54,5 +54,5 @@ def test_get_transforms_output_shape(dummy_data):
     dataset = CustomDataset(df, img_dir, transforms=val_trans)
     image, label = dataset[0]
 
-    assert isinstance(image, np.ndarray)
+    assert isinstance(image, torch.Tensor)
     assert image.shape == (3, 256, 256)

@@ -54,5 +54,5 @@ def test_get_transforms_output_shape(dummy_data):
     dataset = CustomDataset(df, img_dir, transforms=val_trans)
     image, label = dataset[0]
 
-    assert isinstance(image, torch.Tensor)
+    assert isinstance(image, np.ndarray)
     assert image.shape == (3, 256, 256)

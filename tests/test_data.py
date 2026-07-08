@@ -42,7 +42,14 @@ def test_custom_dataset(dummy_data):
 def test_get_transforms_output_shape(dummy_data):
     df, img_dir = dummy_data
 
-    train_trans, val_trans = get_transforms(img_size=256)
+    dummy_data_config = {
+        "input_size": [3, 256, 256],
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225],
+        "interpolation": "bilinear",
+    }
+
+    train_trans, val_trans = get_transforms(dummy_data_config)
 
     dataset = CustomDataset(df, img_dir, transforms=val_trans)
     image, label = dataset[0]

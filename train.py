@@ -1,20 +1,26 @@
 import argparse
 import os
 import random
+import cv2
 
-import numpy as np
-import torch
-from torch.nn.parallel import DistributedDataParallel as DDP
-import wandb
+cv2.setNumThreads(0)
+cv2.ocl.setUseOpenCL(False)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
-from src.config import load_config
-from src.data import get_dataloaders
-from src.losses import FocalLoss
-from src.metrics import CassavaMetrics
-from src.models import build_model
-from src.trainer import ModelTrainer
-from src.utils import EarlyStopping
-from src.distributed import setup_ddp, cleanup_ddp, is_main_process
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: E402
+import wandb  # noqa: E402
+
+from src.config import load_config  # noqa: E402
+from src.data import get_dataloaders  # noqa: E402
+from src.losses import FocalLoss  # noqa: E402
+from src.metrics import CassavaMetrics  # noqa: E402
+from src.models import build_model  # noqa: E402
+from src.trainer import ModelTrainer  # noqa: E402
+from src.utils import EarlyStopping  # noqa: E402
+from src.distributed import setup_ddp, cleanup_ddp, is_main_process  # noqa: E402
 
 
 def set_seed(seed: int) -> None:

@@ -1,11 +1,19 @@
 import pathlib
 import torch
-import albumentations as A
-import cv2
 import pandas as pd
+
+# Закомментировали Albumentations и cv2
+# import albumentations as A
+# import cv2
+# from albumentations.pytorch import ToTensorV2
+
+# Добавили новые импорты torchvision
+from torchvision.io import read_image, ImageReadMode
+from torchvision.transforms import v2
+from torchvision.transforms.functional import InterpolationMode
+
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from albumentations.pytorch import ToTensorV2
 from sklearn.model_selection import train_test_split
 
 
@@ -24,55 +32,105 @@ class CustomDataset(Dataset):
         label = self.labels[idx]
         img_path = pathlib.Path(self.image_dir) / img_name
 
-        image = cv2.imread(str(img_path))
-        if image is None:
-            raise FileNotFoundError(f"Картинка не найдена по пути: {img_path}")
+        # --- Старый вариант (OpenCV + Albumentations) ---
+        # image = cv2.imread(str(img_path))
+        # if image is None:
+        #     raise FileNotFoundError(f"Картинка не найдена по пути: {img_path}")
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # if self.transforms:
+        #     augmented = self.transforms(image=image)
+        #     image = augmented["image"]
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # --- Новый вариант (torchvision.io + v2) ---
+        try:
+            # Сразу читаем картинку в виде RGB-тензора (C, H, W)
+            image = read_image(str(img_path), mode=ImageReadMode.RGB)
+        except Exception as e:
+            raise FileNotFoundError(f"Ошибка загрузки картинки: {img_path}") from e
 
         if self.transforms:
-            augmented = self.transforms(image=image)
-            image = augmented["image"]
+            # Синтаксис проще: нет словарей, просто передаем тензор
+            image = self.transforms(image)
 
         return image, torch.tensor(label, dtype=torch.long)
 
 
 def get_transforms(data_config):
-
     img_size = data_config["input_size"][1]
     mean = data_config["mean"]
     std = data_config["std"]
 
+    # --- Старый вариант интерполяции (OpenCV) ---
+    # interpolation = cv2.INTER_CUBIC if data_config["interpolation"] == "bicubic" else cv2.INTER_LINEAR
+
+    # --- Новый вариант интерполяции (torchvision) ---
     interpolation = (
-        cv2.INTER_CUBIC
+        InterpolationMode.BICUBIC
         if data_config["interpolation"] == "bicubic"
-        else cv2.INTER_LINEAR
+        else InterpolationMode.BILINEAR
     )
 
-    train_transforms = A.Compose(
+    # --- Старый вариант (Albumentations) ---
+    # interpolation = (
+    #     cv2.INTER_CUBIC
+    #     if data_config["interpolation"] == "bicubic"
+    #     else cv2.INTER_LINEAR
+    # )
+
+    # train_transforms = A.Compose(
+    #     [
+    #         A.RandomResizedCrop(
+    #             size=(img_size, img_size), scale=(0.8, 1.0), interpolation=interpolation
+    #         ),
+    #         A.HorizontalFlip(p=0.5),
+    #         A.VerticalFlip(p=0.5),
+    #         A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.0, p=0.4),
+    #         A.CoarseDropout(
+    #             num_holes_range=(1, 8),
+    #             hole_height_range=(1, max(1, img_size // 8)),
+    #             hole_width_range=(1, max(1, img_size // 8)),
+    #             p=0.3,
+    #         ),
+    #         A.Normalize(mean=mean, std=std),
+    #         ToTensorV2(),
+    #     ]
+    # )
+
+    # val_transforms = A.Compose(
+    #     [
+    #         A.Resize(height=img_size, width=img_size, interpolation=interpolation),
+    #         A.Normalize(mean=mean, std=std),
+    #         ToTensorV2(),
+    #     ]
+    # )
+
+    # --- Новый вариант (torchvision.transforms.v2) ---
+    train_transforms = v2.Compose(
         [
-            A.RandomResizedCrop(
+            v2.RandomResizedCrop(
                 size=(img_size, img_size), scale=(0.8, 1.0), interpolation=interpolation
             ),
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5),
-            A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.0, p=0.4),
-            A.CoarseDropout(
-                num_holes_range=(1, 8),
-                hole_height_range=(1, max(1, img_size // 8)),
-                hole_width_range=(1, max(1, img_size // 8)),
-                p=0.3,
+            v2.RandomHorizontalFlip(p=0.5),
+            v2.RandomVerticalFlip(p=0.5),
+            # Для ColorJitter с вероятностью 0.4 используем RandomApply
+            v2.RandomApply(
+                [v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.0)],
+                p=0.4,
             ),
-            A.Normalize(mean=mean, std=std),
-            ToTensorV2(),
+            # Конвертируем uint8 (0-255) в float32 (0.0-1.0)
+            v2.ToDtype(torch.float32, scale=True),
+            # Нормализация
+            v2.Normalize(mean=mean, std=std),
+            # Аналог CoarseDropout (применяется к тензорам после нормализации)
+            v2.RandomErasing(p=0.3, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=0),
         ]
     )
 
-    val_transforms = A.Compose(
+    val_transforms = v2.Compose(
         [
-            A.Resize(height=img_size, width=img_size, interpolation=interpolation),
-            A.Normalize(mean=mean, std=std),
-            ToTensorV2(),
+            v2.Resize(size=(img_size, img_size), interpolation=interpolation),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=mean, std=std),
         ]
     )
 

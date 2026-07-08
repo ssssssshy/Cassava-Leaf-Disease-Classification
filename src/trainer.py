@@ -115,7 +115,11 @@ class ModelTrainer:
 
         acc, f1, _ = self.metrics.compute()
         avg_loss = running_loss / len(self.val_loader)
+
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
+        acc = reduce_mean(acc, self.world_size, self.device)
+        f1 = reduce_mean(f1, self.world_size, self.device)
+
         return avg_loss, acc, f1
 
     def _save_checkpoint(self, epoch: int, v_f1: float):

@@ -3,7 +3,7 @@ path:
   img_dir: "/kaggle/input/competitions/cassava-leaf-disease-classification/train_images"
 
 model:
-  name: "inception_v3"
+  name: "inception_v3.tv_in1k"
   num_classes: 5
   pretrained: true
 

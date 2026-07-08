@@ -62,11 +62,13 @@ def main():
             config=cfg.model_dump(),
         )
 
+    model, data_config = build_model(cfg)
+    model = model.to(device)
+
     train_loader, val_loader = get_dataloaders(
-        cfg, rank=rank, world_size=world_size, use_ddp=use_ddp
+        cfg, data_config=data_config, rank=rank, world_size=world_size, use_ddp=use_ddp
     )
 
-    model = build_model(cfg).to(device)
     if use_ddp:
         model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 
@@ -74,16 +76,17 @@ def main():
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.lr)
 
-    """scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=cfg.train.epochs
-    )"""
-
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode="min",  # Следим за loss, он обычно меньше скачет
-        factor=0.5,
-        patience=1,  # Снижаем LR уже после 2-х неудачных эпох
     )
+
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer,
+    #     mode="max",
+    #     factor=0.5,
+    #     patience=1,
+    # )
+
     metrics = CassavaMetrics(cfg, device=device)
 
     early_stopper = EarlyStopping(

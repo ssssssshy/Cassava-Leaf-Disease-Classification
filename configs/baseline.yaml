@@ -3,7 +3,7 @@ path:
   img_dir: "data/raw/train_images"
 
 model:
-  name: "inception_v3"
+  name: "inception_v3.tv_in1k"
   num_classes: 5
   pretrained: true
 

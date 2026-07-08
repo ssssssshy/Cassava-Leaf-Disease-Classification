@@ -30,11 +30,11 @@ A PyTorch-based machine learning pipeline designed for the [Cassava Leaf Disease
 │   ├── models.py           # Neural network architectures
 │   ├── trainer.py          # Core training and validation loops
 │   └── utils.py            # Helper functions (EarlyStopping, logging)
-├── tests/                  # Unit tests (test_config.py, test_data.py)
-├── evaluate.py             # Standalone evaluation script
+├── tests/                  # Unit tests (test_config.py, test_config.py)
 ├── pyproject.toml          # Project metadata and dependency definitions
 ├── train.py                # Main execution script for training
 └── uv.lock                 # Locked dependency tree
+
 
 ```
 
@@ -49,6 +49,7 @@ You must download and structure the dataset locally before initiating any traini
 ```bash
 kaggle competitions download -c cassava-leaf-disease-classification
 
+
 ```
 
 2. Extract the archive and organize the files strictly according to this directory tree:
@@ -59,6 +60,7 @@ data/
     ├── train_images/
     ├── train.csv
     └── label_num_to_disease_map.json
+
 
 ```
 
@@ -71,8 +73,9 @@ This project strictly utilizes `uv` for Python environment and dependency manage
 1. Clone the repository:
 
 ```bash
-git clone [https://github.com/ssssssshy/Cassava-Leaf-Disease-Classification.git](https://github.com/ssssssshy/Cassava-Leaf-Disease-Classification.git)
+git clone https://github.com/ssssssshy/Cassava-Leaf-Disease-Classification.git
 cd Cassava-Leaf-Disease-Classification
+
 
 ```
 
@@ -80,6 +83,7 @@ cd Cassava-Leaf-Disease-Classification
 
 ```bash
 uv sync
+
 
 ```
 
@@ -92,6 +96,7 @@ source .venv/bin/activate
 # On Windows
 .venv\Scripts\activate
 
+
 ```
 
 *Note: Explicit activation is optional. You can execute scripts directly via `uv run <command>` without activating the environment.*
@@ -100,6 +105,7 @@ source .venv/bin/activate
 
 ```bash
 uv run wandb login
+
 
 ```
 
@@ -112,6 +118,7 @@ To execute the main training script:
 ```bash
 uv run train.py
 
+
 ```
 
 To execute specific modules within the source directory, use the `-m` flag:
@@ -120,6 +127,7 @@ To execute specific modules within the source directory, use the `-m` flag:
 uv run -m src.trainer
 uv run -m src.data
 
+
 ```
 
 For distributed training across multiple GPUs, utilize `torchrun` within the `uv` context. Example for a 2-GPU node:
@@ -127,7 +135,23 @@ For distributed training across multiple GPUs, utilize `torchrun` within the `uv
 ```bash
 uv run torchrun --nproc_per_node=2 train.py
 
+
 ```
+
+## ⚠️ Known Nuance: Distributed Validation (Padding Bias)
+
+When evaluating the model during distributed multi-GPU training, please note a specific behavior regarding PyTorch's `DistributedSampler`:
+
+By default, `DistributedSampler` pads (duplicates) the validation dataset at the end so that its total length is evenly divisible by `world_size` (the number of GPUs).
+
+**The Issue:** Because of this padding, a few validation samples will be evaluated more than once. This can introduce a slight distortion (bias) into the final validation metrics.
+
+**The Solution for Strict Inference:** While this slight bias is generally acceptable for monitoring trends during the training loop, strict validation or final inference requires a workaround. To obtain exact metrics, you must either:
+
+1. Gather all predictions across ranks (e.g., using `all_gather`) and explicitly truncate the final predictions array to the original dataset size (`len(val_dataset)`).
+2. Utilize a custom sampler that does not apply padding.
+
+Please keep this in mind when analyzing final validation scores or performing strict inference generation on distributed setups.
 
 ## Configuration
 
@@ -140,21 +164,5 @@ To execute the test suite:
 ```bash
 uv run pytest tests/
 
+
 ```
-
-⚠️ 3.2. Специфика валидационного DistributedSampler (Padding Bias)
-  При использовании DistributedSampler для валидации:
-
-   1 val_sampler = DistributedSampler(
-   2     val_dataset,
-   3     num_replicas=world_size,
-   4     rank=rank,
-   5     shuffle=False,
-   6 )
-  Проблема:
-  DistributedSampler по умолчанию дополняет (дублирует) датасет в конце, чтобы его размер нацело делился на world_size
-  (количество GPU). Это означает, что некоторые валидационные сэмплы будут вычислены дважды. Для итогового скора валидации это
-  может внести незначительное искажение.
-  Решение:
-  Для строгого инференса/валидации часто используют кастомные сэмплеры без паддинга, либо собирают предсказания (all_gather) и
-  обрезают массив предсказаний до исходного размера len(val_dataset). Укажите в комментариях или документации эту особенность.

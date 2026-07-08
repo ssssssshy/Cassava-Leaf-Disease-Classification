@@ -24,4 +24,4 @@ early_stopping:
 
 wandb:
   project_name: "VisionShift-Cassava"
-  run_name: "run-with-ReduceLROnPlateau2"
+  run_name: "inception-focal-loss-fixx"

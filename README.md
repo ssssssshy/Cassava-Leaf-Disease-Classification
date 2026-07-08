@@ -8,7 +8,7 @@ A PyTorch-based machine learning pipeline designed for the [Cassava Leaf Disease
 * **Mixed Precision (AMP):** Implementation of `torch.amp.autocast` and `GradScaler` to optimize memory utilization and computational throughput.
 * **Configuration Management:** Strict hyperparameter validation and serialization utilizing Pydantic and YAML configuration files.
 * **Dependency Management:** Built and locked using `uv` for deterministic builds and rapid environment resolution (`pyproject.toml` / `uv.lock`).
-* **Experiment Tracking:** Native integration with Weights & Biases (WandB) for logging metrics, hardware utilization, and model checkpoints.
+* **Experiment Tracking:** Native integration with [Weights & Biases (WandB)]() for logging metrics, hardware utilization, and model checkpoints.
 * **Testing and CI/CD:** Unit testing implemented via `pytest` with automated workflows configured in GitHub Actions.
 
 ## Project Structure

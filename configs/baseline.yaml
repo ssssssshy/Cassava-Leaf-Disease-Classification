@@ -25,4 +25,4 @@ early_stopping:
 
 wandb:
   project_name: "VisionShift-Cassava"
-  run_name: "inception-focal-loss-v1"
+  run_name: "inception-focal-loss-fixxs"

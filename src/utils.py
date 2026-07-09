@@ -1,8 +1,11 @@
 class EarlyStopping:
     def __init__(self, patience: int, min_delta: float, mode: str = "max"):
-        assert mode in ("max", "min"), (
-            f"mode должен быть 'max' или 'min', получено: {mode}"
-        )
+        # assert заменён на raise ValueError — assert удаляется при python -O,
+        # что приводит к silent-багу (невалидный mode молча ломает логику сравнения)
+        if mode not in ("max", "min"):
+            raise ValueError(
+                f"mode должен быть 'max' или 'min', получено: {mode}"
+            )
 
         self.patience = patience
         self.min_delta = min_delta

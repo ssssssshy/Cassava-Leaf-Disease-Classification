@@ -1,26 +1,23 @@
 import argparse
 import os
 import random
-import cv2
 
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False)
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-import numpy as np  # noqa: E402
-import torch  # noqa: E402
-from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: E402
-import wandb  # noqa: E402
+import numpy as np 
+import torch 
+from torch.nn.parallel import DistributedDataParallel as DDP 
+import wandb 
 
-from src.config import load_config  # noqa: E402
-from src.data import get_dataloaders  # noqa: E402
-from src.losses import FocalLoss  # noqa: E402
-from src.metrics import CassavaMetrics  # noqa: E402
-from src.models import build_model  # noqa: E402
-from src.trainer import ModelTrainer  # noqa: E402
-from src.utils import EarlyStopping  # noqa: E402
-from src.distributed import setup_ddp, cleanup_ddp, is_main_process  # noqa: E402
+from src.config import load_config  
+from src.data import get_dataloaders 
+from src.losses import FocalLoss  
+from src.metrics import CassavaMetrics  
+from src.models import build_model  
+from src.trainer import ModelTrainer  
+from src.utils import EarlyStopping  
+from src.distributed import setup_ddp, cleanup_ddp, is_main_process  
 
 
 def set_seed(seed: int) -> None:
@@ -62,16 +59,30 @@ def main():
 
     if is_main_process(rank):
         print(f"Устройство: {device} | DDP: {use_ddp} | World size: {world_size}")
-        wandb.init(
-            project=cfg.wandb.project_name,
-            name=cfg.wandb.run_name,
-            config=cfg.model_dump(),
-        )
+        # добавлена проверка WANDB_API_KEY — без неё wandb.init() зависает
+        # в headless/CI средах, ожидая ввод API-ключа в stdin
+        if os.environ.get("WANDB_API_KEY"):
+            wandb.init(
+                project=cfg.wandb.project_name,
+                name=cfg.wandb.run_name,
+                config=cfg.model_dump(),
+            )
+        else:
+            # если ключ не задан, запускаем wandb в offline-режиме,
+            # чтобы обучение не зависало и логи сохранялись локально
+            print("WANDB_API_KEY не задан — wandb запущен в offline-режиме")
+            os.environ["WANDB_MODE"] = "offline"
+            wandb.init(
+                project=cfg.wandb.project_name,
+                name=cfg.wandb.run_name,
+                config=cfg.model_dump(),
+            )
 
     model, data_config = build_model(cfg)
     model = model.to(device)
 
-    train_loader, val_loader = get_dataloaders(
+    # get_dataloaders теперь возвращает val_len — реальный размер val набора
+    train_loader, val_loader, val_len = get_dataloaders(
         cfg, data_config=data_config, rank=rank, world_size=world_size, use_ddp=use_ddp
     )
 
@@ -86,13 +97,6 @@ def main():
         optimizer, T_max=cfg.train.epochs
     )
 
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer,
-    #     mode="max",
-    #     factor=0.5,
-    #     patience=1,
-    # )
-
     metrics = CassavaMetrics(cfg, device=device)
 
     early_stopper = EarlyStopping(
@@ -101,16 +105,18 @@ def main():
         mode=cfg.early_stopping.mode,
     )
 
+    # save_path теперь берётся из конфига, а не захардкожен
     trainer = ModelTrainer(
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
+        val_len=val_len,  # передаём реальный размер val для корректного loss averaging
         criterion=criterion,
         optimizer=optimizer,
         scheduler=scheduler,
         metrics=metrics,
         device=device,
-        save_path="weights/best_model.pth",
+        save_path=cfg.train.save_path,  # путь из конфига вместо хардкода
         rank=rank,
         world_size=world_size,
     )

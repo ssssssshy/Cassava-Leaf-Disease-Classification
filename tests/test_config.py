@@ -1,5 +1,6 @@
 import pytest
 import yaml
+from pydantic import ValidationError  # импортируем ValidationError вместо общего Exception
 from src.config import load_config, AppConfig
 
 
@@ -16,6 +17,7 @@ def test_load_config_valid(tmp_path):
             "img_size": 256,
             "num_workers": 2,
             "val_size": 0.2,
+            "save_path": "weights/test_model.pth",  # добавлено новое поле конфига
         },
         "wandb": {"project_name": "test", "run_name": "test_run"},
     }
@@ -39,5 +41,7 @@ def test_load_config_missing_required(tmp_path):
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
 
-    with pytest.raises(Exception):
+    # ловим ValidationError вместо Exception — pytest.raises(Exception) перехватывал
+    # любые ошибки (включая KeyError, AssertionError), маскируя реальные баги
+    with pytest.raises(ValidationError):
         load_config(config_file)

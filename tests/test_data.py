@@ -49,7 +49,8 @@ def test_get_transforms_output_shape(dummy_data):
         "interpolation": "bilinear",
     }
 
-    train_trans, val_trans = get_transforms(dummy_data_config)
+    # get_transforms теперь принимает явный img_size вместо data_config["input_size"][1]
+    train_trans, val_trans = get_transforms(dummy_data_config, img_size=256)
 
     dataset = CustomDataset(df, img_dir, transforms=val_trans)
     image, label = dataset[0]

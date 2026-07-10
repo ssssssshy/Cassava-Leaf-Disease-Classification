@@ -5,19 +5,19 @@ import random
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-import numpy as np 
-import torch 
-from torch.nn.parallel import DistributedDataParallel as DDP 
-import wandb 
+import numpy as np
+import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
+import wandb
 
-from src.config import load_config  
-from src.data import get_dataloaders 
-from src.losses import FocalLoss  
-from src.metrics import CassavaMetrics  
-from src.models import build_model  
-from src.trainer import ModelTrainer  
-from src.utils import EarlyStopping  
-from src.distributed import setup_ddp, cleanup_ddp, is_main_process  
+from src.config import load_config
+from src.data import get_dataloaders
+from src.losses import FocalLoss
+from src.metrics import CassavaMetrics
+from src.models import build_model
+from src.trainer import ModelTrainer
+from src.utils import EarlyStopping
+from src.distributed import setup_ddp, cleanup_ddp, is_main_process
 
 
 def set_seed(seed: int) -> None:
@@ -59,24 +59,12 @@ def main():
 
     if is_main_process(rank):
         print(f"Устройство: {device} | DDP: {use_ddp} | World size: {world_size}")
-        # добавлена проверка WANDB_API_KEY — без неё wandb.init() зависает
-        # в headless/CI средах, ожидая ввод API-ключа в stdin
-        if os.environ.get("WANDB_API_KEY"):
-            wandb.init(
-                project=cfg.wandb.project_name,
-                name=cfg.wandb.run_name,
-                config=cfg.model_dump(),
-            )
-        else:
-            # если ключ не задан, запускаем wandb в offline-режиме,
-            # чтобы обучение не зависало и логи сохранялись локально
-            print("WANDB_API_KEY не задан — wandb запущен в offline-режиме")
-            os.environ["WANDB_MODE"] = "offline"
-            wandb.init(
-                project=cfg.wandb.project_name,
-                name=cfg.wandb.run_name,
-                config=cfg.model_dump(),
-            )
+
+        wandb.init(
+            project=cfg.wandb.project_name,
+            name=cfg.wandb.run_name,
+            config=cfg.model_dump(),
+        )
 
     model, data_config = build_model(cfg)
     model = model.to(device)

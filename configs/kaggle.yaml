@@ -13,7 +13,7 @@ train:
   lr: 1.0e-3
   focal_gamma: 2.0
   seed: 42
-  img_size: 384
+  img_size: 512
   num_workers: 2
   val_size: 0.2
 

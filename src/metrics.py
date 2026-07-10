@@ -11,16 +11,27 @@ from src.config import load_config
 class CassavaMetrics:
     def __init__(self, cfg, device: torch.device):
 
+        # sync_on_compute=True явно указан — при DDP torchmetrics синхронизирует
+        # внутреннее состояние (confusion matrix) между ранками ПЕРЕД вычислением метрики,
+        # что даёт корректные глобальные accuracy/F1 без ручного reduce_mean
         self.accuracy = MulticlassAccuracy(
-            num_classes=cfg.model.num_classes, average="micro"
+            num_classes=cfg.model.num_classes,
+            average="micro",
+            sync_on_compute=True,  # явная синхронизация при DDP
         ).to(device)
 
+        # sync_on_compute=True для macro F1 — критично: macro F1 НЕ линейна,
+        # простое усреднение per-rank macro F1 даёт неверный результат;
+        # синхронизация confusion matrix между ранками обеспечивает корректный глобальный F1
         self.f1_macro = MulticlassF1Score(
-            num_classes=cfg.model.num_classes, average="macro"
+            num_classes=cfg.model.num_classes,
+            average="macro",
+            sync_on_compute=True,  # явная синхронизация для корректного macro F1
         ).to(device)
 
         self.conf_matrix = MulticlassConfusionMatrix(
-            num_classes=cfg.model.num_classes
+            num_classes=cfg.model.num_classes,
+            sync_on_compute=True,  # синхронизация confusion matrix для DDP
         ).to(device)
 
     def update(self, preds: torch.Tensor, targets: torch.Tensor):
@@ -30,9 +41,10 @@ class CassavaMetrics:
         self.conf_matrix.update(preds, targets)
 
     def compute(self):
-
-        acc = self.accuracy.compute().item()
-        f1 = self.f1_macro.compute().item()
+        # убран .item() — возвращаем тензоры, чтобы DDP sync работал корректно;
+        # .item() вызывает immediate materialization, что может нарушить синхронизацию
+        acc = self.accuracy.compute()
+        f1 = self.f1_macro.compute()
         cm = self.conf_matrix.compute().cpu().numpy()
 
         return acc, f1, cm

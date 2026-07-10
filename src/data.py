@@ -28,8 +28,6 @@ class CustomDataset(Dataset):
         label = self.labels[idx]
         img_path = pathlib.Path(self.image_dir) / img_name
 
-        # #13: удалён закомментированный блок старого варианта (OpenCV + Albumentations)
-
         try:
             image = read_image(str(img_path), mode=ImageReadMode.RGB)
         except Exception as e:
@@ -41,8 +39,9 @@ class CustomDataset(Dataset):
         return image, torch.tensor(label, dtype=torch.long)
 
 
-# добавлен параметр img_size — теперь размер изображения берётся из конфига, а не молча игнорируется;
-def get_transforms(data_config, img_size: int):
+def get_transforms(data_config):
+    # Берем актуальный размер из конфига модели (он уже переопределен в build_model)
+    img_size = data_config["input_size"][1]
     mean = data_config["mean"]
     std = data_config["std"]
 
@@ -52,8 +51,6 @@ def get_transforms(data_config, img_size: int):
         else InterpolationMode.BILINEAR
     )
 
-    # img_size теперь явный параметр вместо data_config["input_size"][1],
-    # что позволяет управлять размером через конфиг
     train_transforms = v2.Compose(
         [
             v2.RandomResizedCrop(
@@ -95,7 +92,7 @@ def get_dataloaders(
     # если в каком-либо классе всего 1 сэмпл; добавлена проверка и fallback
     class_counts = df["label"].value_counts()
     min_class_count = class_counts.min()
-    can_stratify = min_class_count >= 2  # #7: stratify требует ≥2 сэмплов на класс
+    can_stratify = min_class_count >= 2  # stratify требует ≥2 сэмплов на класс
 
     if not can_stratify:
         # warning вместо silent fallback — пользователь должен знать о проблеме
@@ -113,8 +110,9 @@ def get_dataloaders(
         random_state=cfg.train.seed,
     )
 
-    # передаём img_size из конфига вместо data_config["input_size"][1]
-    train_trans, val_trans = get_transforms(data_config, img_size=cfg.train.img_size)
+    # Сигнатура не раздута, передаем только data_config
+    train_trans, val_trans = get_transforms(data_config)
+
     train_dataset = CustomDataset(train_df, cfg.path.img_dir, transforms=train_trans)
     val_dataset = CustomDataset(val_df, cfg.path.img_dir, transforms=val_trans)
 
@@ -142,9 +140,11 @@ def get_dataloaders(
 
         train_shuffle = False
 
-    # drop_last изменён с True на False — при highly-imbalanced данных
-    # последний батч может содержать диспропорционально много миноритарных классов,
-    # drop_last=True безвозвратно теряет эти сэмплы каждую эпоху
+    current_samples = len(train_sampler) if train_sampler else len(train_dataset)
+
+    # Включаем drop_last ТОЛЬКО если остаток от деления равен 1 (защита от краша BatchNorm)
+    smart_drop_last = current_samples % cfg.train.batch_size == 1
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=cfg.train.batch_size,
@@ -152,8 +152,9 @@ def get_dataloaders(
         sampler=train_sampler,
         num_workers=cfg.train.num_workers,
         pin_memory=True,
-        drop_last=False,  # не теряем последний батч с потенциально редкими классами
+        drop_last=smart_drop_last,
     )
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=cfg.train.batch_size,

@@ -1,6 +1,6 @@
 path:
-  train_csv: "/kaggle/input/competitions/cassava-leaf-disease-classification/train.csv"
-  img_dir: "/kaggle/input/competitions/cassava-leaf-disease-classification/train_images"
+  train_csv: "data/raw/train.csv"
+  img_dir: "data/raw/train_images"
 
 model:
   name: "inception_v3.tv_in1k"
@@ -14,7 +14,7 @@ train:
   focal_gamma: 2.0
   seed: 42
   img_size: 512
-  num_workers: 2
+  num_workers: 4
   val_size: 0.2
 
 early_stopping:
@@ -24,4 +24,4 @@ early_stopping:
 
 wandb:
   project_name: "VisionShift-Cassava"
-  run_name: "inception-focal-loss-fixx"
+  run_name: "inception_v3-focal_loss"

@@ -38,6 +38,26 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def get_parameter_groups(model: torch.nn.Module, weight_decay: float):
+
+    has_decay = []
+    no_decay = []
+
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+
+        if param.ndim == 1 or name.endswith(".bias"):
+            no_decay.append(param)
+        else:
+            has_decay.append(param)
+
+    return [
+        {"params": has_decay, "weight_decay": weight_decay},
+        {"params": no_decay, "weight_decay": 0.0},
+    ]
+
+
 def main():
     args = parse_args()
     cfg = load_config(args.config)
@@ -69,7 +89,6 @@ def main():
     model, data_config = build_model(cfg)
     model = model.to(device)
 
-    # get_dataloaders теперь возвращает val_len — реальный размер val набора
     train_loader, val_loader, val_len = get_dataloaders(
         cfg, data_config=data_config, rank=rank, world_size=world_size, use_ddp=use_ddp
     )
@@ -79,9 +98,9 @@ def main():
 
     criterion = FocalLoss(gamma=cfg.train.focal_gamma)
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=cfg.train.lr, weight_decay=cfg.train.weight_decay
-    )
+    param_groups = get_parameter_groups(model, cfg.train.weight_decay)
+
+    optimizer = torch.optim.AdamW(param_groups, lr=cfg.train.lr)
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=cfg.train.epochs
@@ -95,18 +114,17 @@ def main():
         mode=cfg.early_stopping.mode,
     )
 
-    # save_path теперь берётся из конфига, а не захардкожен
     trainer = ModelTrainer(
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
-        val_len=val_len,  # передаём реальный размер val для корректного loss averaging
+        val_len=val_len,
         criterion=criterion,
         optimizer=optimizer,
         scheduler=scheduler,
         metrics=metrics,
         device=device,
-        save_path=cfg.path.save_path,  # путь из конфига вместо хардкода
+        save_path=cfg.path.save_path,
         rank=rank,
         world_size=world_size,
     )

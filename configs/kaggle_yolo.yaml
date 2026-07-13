@@ -27,4 +27,4 @@ early_stopping:
 
 wandb:
   project_name: "VisionShift-Cassava"
-  run_name: "yolo12m-cls-focal_loss"
+  run_name: "yolo12m-cls-focal_loss-weight_decay-medium"

@@ -12,3 +12,4 @@ data/
 wandb/
 *.pt
 *.pth
+GEMINI.md

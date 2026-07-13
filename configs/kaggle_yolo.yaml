@@ -1,6 +1,6 @@
 path:
-  train_csv: "/kaggle/input/cassava-leaf-disease-classification/train.csv"
-  img_dir: "/kaggle/input/cassava-leaf-disease-classification/train_images"
+  train_csv: "/kaggle/input/competitions/cassava-leaf-disease-classification/train.csv"
+  img_dir: "/kaggle/input/competitions/cassava-leaf-disease-classification/train_images"
   save_path: "weights/yolo12/best_model.pth"
 
 model:

@@ -19,7 +19,7 @@ class ModelTrainer:
         model: torch.nn.Module,
         train_loader,
         val_loader,
-        val_len: int,  # реальный размер val набора (без padding от DistributedSampler)
+        val_len: int,
         criterion,
         optimizer,
         scheduler,
@@ -30,12 +30,10 @@ class ModelTrainer:
         rank: int = 0,
         world_size: int = 1,
     ):
-        # убран лишний .to(device) — модель уже перемещена на device в train.py;
-        # повторный вызов для DDP-обёртки бессмысленно и тратит время на синхронизацию
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.val_len = val_len  # сохраняем реальный размер для корректного loss averaging
+        self.val_len = val_len
         self.criterion = criterion
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -64,7 +62,7 @@ class ModelTrainer:
         self.model.train()
         self.metrics.reset()
         running_loss = 0.0
-        total_samples = 0  # #3: считаем реальное число сэмплов для корректного усреднения
+        total_samples = 0
 
         if isinstance(self.train_loader.sampler, DistributedSampler):
             self.train_loader.sampler.set_epoch(epoch)
@@ -81,42 +79,36 @@ class ModelTrainer:
                 loss = self.criterion(outputs, labels)
 
             self.scaler.scale(loss).backward()
-
             self.scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
+            # ИЗМЕНЕНИЕ: Отбираем только параметры с requires_grad=True
+            # Это позволяет без ошибок замораживать backbone модели
+            trainable_params = [p for p in self.model.parameters() if p.requires_grad]
+            if trainable_params:
+                torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
 
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
             batch_loss = loss.item()
             running_loss += batch_loss
-            total_samples += labels.size(0)  # #3: накапливаем общее число сэмплов
+            total_samples += labels.size(0)
 
             self.metrics.update(outputs.detach(), labels)
-
             pbar.set_postfix({"Loss": f"{batch_loss:.4f}"})
 
-        # compute() теперь возвращает тензоры (не .item()), torchmetrics
-        # синхронизирует внутреннее состояние между ранками через sync_on_compute=True
-        # → acc и f1 уже глобально корректны, ручной reduce_mean НЕ нужен
-        acc, f1, _ = self.metrics.compute()
-
-        # loss усредняется по реальному числу сэмплов, а не по len(train_loader),
-        # что важно при drop_last=False (последний батч может быть неполным)
+        acc, f1, prec, rec, _ = self.metrics.compute()
         avg_loss = running_loss / max(total_samples / self.train_loader.batch_size, 1)
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
 
-        # acc/f1 — тензоры из torchmetrics; для wandb/print конвертируем в float
-        return avg_loss, acc.item(), f1.item()
+        return avg_loss, acc.item(), f1.item(), prec.item(), rec.item()
 
-    # torch.inference_mode вместо torch.no_grad — отключает больше autograd-механизмов
-    # (view tracking, version counting), что даёт ускорение ~5-10% на inference
     @torch.inference_mode()
     def _val_epoch(self):
         self.model.eval()
         self.metrics.reset()
         running_loss = 0.0
-        total_samples = 0  # считаем реальные сэмплы (включая padding от DistributedSampler)
+        total_samples = 0
 
         pbar = tqdm(self.val_loader, desc="Validation", disable=not self.is_main)
         for images, labels in pbar:
@@ -128,25 +120,17 @@ class ModelTrainer:
                 loss = self.criterion(outputs, labels)
 
             batch_samples = labels.size(0)
-            running_loss += loss.item() * batch_samples  # взвешиваем loss по числу сэмплов
-            total_samples += batch_samples  # считаем ВСЕ сэмплы, включая padding
+            running_loss += loss.item() * batch_samples
+            total_samples += batch_samples
             self.metrics.update(outputs, labels)
 
-        # compute() возвращает глобально корректные метрики (torchmetrics DDP sync)
-        acc, f1, _ = self.metrics.compute()
-
-        # усредняем loss по РЕАЛЬНОМУ числу сэмплов (total_samples),
-        # а не по len(val_loader), что исключает влияние padding от DistributedSampler
+        acc, f1, prec, rec, _ = self.metrics.compute()
         avg_loss = running_loss / max(total_samples, 1)
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
 
-        # убран ручной reduce_mean для acc/f1 — torchmetrics уже синхронизировал
-        # метрики через sync_on_compute=True; повторный reduce_mean был бы
-        # и избыточным, и некорректным для macro F1 (нелинейная метрика)
-        return avg_loss, acc.item(), f1.item()
+        return avg_loss, acc.item(), f1.item(), prec.item(), rec.item()
 
     def _save_checkpoint(self, epoch: int, v_f1: float):
-
         if not self.is_main:
             return
         torch.save(
@@ -170,23 +154,36 @@ class ModelTrainer:
     def fit(
         self, epochs: int, early_stopper: Optional[EarlyStopping] = None
     ) -> Dict[str, Any]:
-        history = {"train_loss": [], "train_f1": [], "val_loss": [], "val_f1": []}
+        history = {
+            "train_loss": [],
+            "train_f1": [],
+            "train_prec": [],
+            "train_rec": [],
+            "val_loss": [],
+            "val_f1": [],
+            "val_prec": [],
+            "val_rec": [],
+        }
 
         for epoch in range(1, epochs + 1):
             current_lr = self.optimizer.param_groups[0]["lr"]
             if self.is_main:
                 print(f"\nЭпоха {epoch} | LR: {current_lr:.6f}")
 
-            t_loss, t_acc, t_f1 = self._train_epoch(epoch)
-
-            v_loss, v_acc, v_f1 = self._val_epoch()
+            t_loss, t_acc, t_f1, t_prec, t_rec = self._train_epoch(epoch)
+            v_loss, v_acc, v_f1, v_prec, v_rec = self._val_epoch()
 
             self._step_scheduler(v_loss, v_f1)
 
             history["train_loss"].append(t_loss)
             history["train_f1"].append(t_f1)
+            history["train_prec"].append(t_prec)
+            history["train_rec"].append(t_rec)
+
             history["val_loss"].append(v_loss)
             history["val_f1"].append(v_f1)
+            history["val_prec"].append(v_prec)
+            history["val_rec"].append(v_rec)
 
             if self.is_main:
                 wandb.log(
@@ -195,9 +192,13 @@ class ModelTrainer:
                         "train/loss": t_loss,
                         "train/acc": t_acc,
                         "train/f1": t_f1,
+                        "train/precision": t_prec,
+                        "train/recall": t_rec,
                         "val/loss": v_loss,
                         "val/acc": v_acc,
                         "val/f1": v_f1,
+                        "val/precision": v_prec,
+                        "val/recall": v_rec,
                         "lr": current_lr,
                     }
                 )

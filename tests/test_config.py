@@ -23,6 +23,7 @@ def valid_config_data():
             "img_size": 256,
             "num_workers": 2,
             "val_size": 0.2,
+            "weight_decay": 0.01,
         },
         "early_stopping": {"patience": 5, "min_delta": 0.0, "mode": "max"},
         "wandb": {"project_name": "test", "run_name": "test_run"},
@@ -41,6 +42,7 @@ def test_load_config_valid(tmp_path, valid_config_data):
     assert cfg.model.name == "inception_v3"
     assert cfg.path.save_path == "weights/test_model.pth"  # <--- Изменили проверку
     assert cfg.early_stopping.mode == "max"
+    assert cfg.train.weight_decay == 0.01
 
 
 def test_load_config_missing_required(tmp_path):

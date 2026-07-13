@@ -11,11 +11,11 @@ model:
 train:
   batch_size: 16
   epochs: 20
-  lr: 1.0e-3 
+  lr: 1.0e-4 
   focal_gamma: 2.0
   seed: 42
   img_size: 640 
-  weight_decay: 1.0e-2
+  weight_decay: 5.0e-4
   num_workers: 4
   val_size: 0.2
 

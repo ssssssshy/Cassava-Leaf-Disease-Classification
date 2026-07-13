@@ -4,14 +4,14 @@ path:
   save_path: "weights/yolo12/best_model.pth"
 
 model:
-  name: "yolo12n" 
+  name: "yolo12m" 
   num_classes: 5
   pretrained: true
 
 train:
   batch_size: 16
   epochs: 20
-  lr: 1.0e-3 
+  lr: 1.0e-4 
   focal_gamma: 2.0
   seed: 42
   img_size: 640 
@@ -26,4 +26,4 @@ early_stopping:
 
 wandb:
   project_name: "VisionShift-Cassava"
-  run_name: "yolo12n-cls-focal_loss"
+  run_name: "yolo12m-cls-focal_loss"

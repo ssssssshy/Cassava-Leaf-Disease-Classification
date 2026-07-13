@@ -160,7 +160,3 @@ To execute the test suite:
 uv run pytest tests/
 
 ```
-
-```
-
-```

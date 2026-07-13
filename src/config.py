@@ -34,6 +34,7 @@ class TrainConfig(BaseModel):
     val_size: float = Field(gt=0, lt=1)  # доля валидации строго в (0, 1)
     # save_path вынесен из хардкода в конфиг — можно менять путь сохранения через YAML
     save_path: str = Field(default="weights/best_model.pth")
+    weight_decay: float = Field(default=1e-2, ge=0)
 
 
 class EarlyStoppingConfig(BaseModel):

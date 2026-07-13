@@ -79,7 +79,9 @@ def main():
 
     criterion = FocalLoss(gamma=cfg.train.focal_gamma)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.lr)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=cfg.train.lr, weight_decay=cfg.train.weight_decay
+    )
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=cfg.train.epochs

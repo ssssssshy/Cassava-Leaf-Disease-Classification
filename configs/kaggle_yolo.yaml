@@ -15,6 +15,7 @@ train:
   focal_gamma: 2.0
   seed: 42
   img_size: 640 
+  weight_decay: 1.0e-2
   num_workers: 4
   val_size: 0.2
 

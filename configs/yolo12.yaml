@@ -11,7 +11,7 @@ model:
 train:
   batch_size: 16
   epochs: 20
-  lr: 1.0e-4 
+  lr: 1.0e-3 
   focal_gamma: 2.0
   seed: 42
   weight_decay: 1.0e-2

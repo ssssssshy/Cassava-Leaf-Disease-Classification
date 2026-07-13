@@ -1,0 +1,29 @@
+path:
+  train_csv: "/kaggle/input/cassava-leaf-disease-classification/train.csv"
+  img_dir: "/kaggle/input/cassava-leaf-disease-classification/train_images"
+  save_path: "weights/yolo12/best_model.pth"
+
+model:
+  name: "yolo12n" 
+  num_classes: 5
+  pretrained: true
+
+train:
+  batch_size: 16
+  epochs: 20
+  lr: 1.0e-3 
+  focal_gamma: 2.0
+  seed: 42
+  img_size: 640 
+  num_workers: 4
+  val_size: 0.2
+
+
+early_stopping:
+  patience: 5
+  min_delta: 0.0
+  mode: "max"
+
+wandb:
+  project_name: "VisionShift-Cassava"
+  run_name: "yolo12n-cls-focal_loss"

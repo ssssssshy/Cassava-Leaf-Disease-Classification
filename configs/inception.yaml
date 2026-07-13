@@ -1,7 +1,7 @@
 path:
   train_csv: "data/raw/train.csv"
   img_dir: "data/raw/train_images"
-  save_path: "weights/best_model.pth"
+  save_path: "weights/inception_v3/best_model.pth"
 
 model:
   name: "inception_v3.tv_in1k"

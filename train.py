@@ -104,7 +104,7 @@ def main():
         scheduler=scheduler,
         metrics=metrics,
         device=device,
-        save_path=cfg.train.save_path,  # путь из конфига вместо хардкода
+        save_path=cfg.path.save_path,  # путь из конфига вместо хардкода
         rank=rank,
         world_size=world_size,
     )

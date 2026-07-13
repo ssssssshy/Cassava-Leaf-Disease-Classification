@@ -1,11 +1,16 @@
 import yaml
 from pathlib import Path
-from pydantic import BaseModel, Field, field_validator  # #8: добавлен field_validator для проверки полей конфига
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+)  # #8: добавлен field_validator для проверки полей конфига
 
 
 class PathConfig(BaseModel):
     train_csv: str = Field(default="data/raw/train.csv")
     img_dir: str = Field(default="data/raw/train_images")
+    save_path: str = Field(default="weights/best_model.pth")  #
 
 
 class ModelConfig(BaseModel):
@@ -20,7 +25,9 @@ class TrainConfig(BaseModel):
     batch_size: int = Field(gt=0)  # размер батча должен быть > 0
     epochs: int = Field(gt=0)  # количество эпох должно быть > 0
     lr: float = Field(gt=0)  # learning rate должен быть > 0
-    focal_gamma: float = Field(ge=0)  # gamma фокального лосса не может быть отрицательной
+    focal_gamma: float = Field(
+        ge=0
+    )  # gamma фокального лосса не может быть отрицательной
     seed: int
     img_size: int = Field(gt=0)  # размер изображения должен быть > 0
     num_workers: int = Field(ge=0)  # число воркеров не может быть отрицательным

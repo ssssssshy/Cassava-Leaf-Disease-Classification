@@ -1,0 +1,17 @@
+.git
+.gitignore
+.github
+.venv
+.pytest_cache
+__pycache__
+data
+notebooks
+tests
+*.ipynb
+*.pyc
+*.pyo
+*.log
+uv.lock
+# Exclude raw data and only keep model weights
+data/raw
+data/processed

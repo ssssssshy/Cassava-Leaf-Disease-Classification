@@ -11,6 +11,9 @@ A PyTorch-based machine learning pipeline designed for the [Cassava Leaf Disease
 * **Configuration Management:** Strict hyperparameter validation and serialization utilizing Pydantic and YAML configuration files.
 * **Dependency Management:** Built and locked using `uv` for deterministic builds and rapid environment resolution (`pyproject.toml` / `uv.lock`).
 * **Experiment Tracking:** Native integration with [Weights & Biases (WandB)](https://wandb.ai/petrosangosa2005-ssss/VisionShift-Cassava/reports/VisionShift-Cassava-performance-narrative-and-next-training-step--VmlldzoxNzQ0NTI2NA?accessToken=jcyogm240awqv56gwsm4sfs0vgq57m929phyi1ukw2ojfes1w6y3uugmq2vd8uas) for logging metrics, hardware utilization, and model checkpoints.
+* **Model Serving:** Production-ready FastAPI service supporting both PyTorch (.pth) and ONNX (.onnx) inference.
+* **ONNX Optimization:** Dedicated export script to convert trained models to ONNX format for high-performance serving.
+* **Containerization:** Docker support using `uv` for fast, reproducible deployments.
 * **Testing and CI/CD:** Unit testing implemented via `pytest` with automated workflows configured in GitHub Actions.
 
 ## Project Structure
@@ -22,21 +25,17 @@ A PyTorch-based machine learning pipeline designed for the [Cassava Leaf Disease
 ├── data/                   # Ignored by Git (see Dataset section below)
 │   ├── processed/          
 │   └── raw/                
-├── notebook/               # Exploratory Data Analysis (EDA) notebooks
 ├── src/                    # Core source code modules
+│   ├── api.py              # FastAPI implementation for model serving
+│   ├── export.py           # ONNX export and validation script
 │   ├── config.py           # Pydantic schema definitions
 │   ├── data.py             # PyTorch Dataset and DataLoader implementations
 │   ├── distributed.py      # Multi-GPU synchronization utilities
-│   ├── losses.py           # Custom loss functions (e.g., Focal Loss)
-│   ├── metrics.py          # Metric computation logic (Accuracy, F1, Precision, Recall)
-│   ├── models.py           # Neural network architectures (timm & YOLOClsWrapper)
-│   ├── trainer.py          # Core training and validation loops
-│   └── utils.py            # Helper functions (EarlyStopping, logging)
-├── tests/                  # Unit tests (test_config.py, etc.)
-├── pyproject.toml          # Project metadata and dependency definitions
+│   ├── models.py           # Neural network architectures
+│   └── ...                 
+├── Dockerfile              # Container definition for API deployment
 ├── train.py                # Main execution script for training
-└── uv.lock                 # Locked dependency tree
-
+└── ...
 ```
 
 ## Dataset Preparation
@@ -123,6 +122,44 @@ To execute the training script with YOLOv12 classification:
 uv run train.py --config configs/yolo12.yaml
 
 ```
+
+### ONNX Export
+
+To convert a trained PyTorch checkpoint to ONNX for optimized inference:
+
+```bash
+# Ensure the root directory is in PYTHONPATH
+export PYTHONPATH=$PYTHONPATH:.
+uv run python src/export.py --config configs/inception.yaml
+
+```
+
+### Model Serving (FastAPI)
+
+To launch the inference API locally:
+
+```bash
+uv run uvicorn src.api:app --host 0.0.0.0 --port 8000
+
+```
+The API will automatically detect and prioritize the `.onnx` version of the model if it exists in the weights directory.
+
+### Docker Deployment
+
+To build and run the containerized API:
+
+```bash
+# Build the image
+docker build -t imbalance-cv-api .
+
+# Run the container
+docker run -p 8000:8000 imbalance-cv-api
+
+```
+
+The API endpoints:
+* `GET /health`: Basic health check.
+* `POST /predict`: Submit an image file for classification. Returns Top-1 prediction, confidence score, and full probability array.
 
 For distributed training across multiple GPUs, utilize `torchrun` within the `uv` context. Example for a 2-GPU node training YOLO:
 

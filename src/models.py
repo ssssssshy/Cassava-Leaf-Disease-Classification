@@ -25,8 +25,8 @@ class YOLOClsWrapper(nn.Module):
         head = self.model.model[-1]  # type: ignore
 
         if hasattr(head, "linear"):
-            in_features = head.linear.in_features
-            head.linear = nn.Linear(in_features, cfg.model.num_classes)
+            in_features = head.linear.in_features  # type: ignore
+            head.linear = nn.Linear(in_features, cfg.model.num_classes)  # type: ignore
         else:
             raise ValueError(
                 f"Не удалось найти слой 'linear' в голове модели {cfg.model.name}"

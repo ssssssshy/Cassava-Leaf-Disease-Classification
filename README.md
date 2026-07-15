@@ -182,28 +182,6 @@ docker run -d \
 * **`GET /health`**: Returns the API status.
 * **`POST /predict`**: Submit an image file (multipart/form-data) for classification.
 
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "filename": "test_image.jpg",
-  "prediction": {
-    "class_id": 3,
-    "label": "Cassava Mosaic Disease (CMD)",
-    "confidence": 0.9412
-  },
-  "probabilities": {
-    "0": 0.0104,
-    "1": 0.0215,
-    "2": 0.0118,
-    "3": 0.9412,
-    "4": 0.0151
-  }
-}
-
-```
-
 ---
 
 For distributed training across multiple GPUs, utilize `torchrun` within the `uv` context. Example for a 2-GPU node training YOLO:

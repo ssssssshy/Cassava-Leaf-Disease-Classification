@@ -1,35 +1,35 @@
-
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV MODEL_CONFIG="/configs/yolo12.yaml"
+
+ENV MODEL_CONFIG="/app/configs/yolo12.yaml" 
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 \
-    python3-pip \
-    python3-venv \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
-    build-essential \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN ln -s /usr/bin/python3.10 /usr/bin/python
-
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+
+RUN uv python install 3.12
 
 COPY pyproject.toml uv.lock ./
 
-# Сначала uv устанавливает всё строго по лок-файлу (включая легкий CPU PyTorch)
+
 RUN uv sync --frozen --no-dev
 
-# Принудительно удаляем CPU-версию и ставим тяжелую GPU-версию поверх готового окружения
 RUN uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+
+RUN uv pip install --python .venv opencv-python-headless
 
 COPY src/ ./src/
 COPY configs/ ./configs/

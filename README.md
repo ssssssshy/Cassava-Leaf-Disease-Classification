@@ -34,8 +34,10 @@ A PyTorch-based machine learning pipeline designed for the [Cassava Leaf Disease
 │   ├── models.py           # Neural network architectures
 │   └── ...                 
 ├── Dockerfile              # Container definition for API deployment
+├── Dockerfile.gpu          # GPU-accelerated container definition
 ├── train.py                # Main execution script for training
 └── ...
+
 ```
 
 ## Dataset Preparation
@@ -142,24 +144,67 @@ To launch the inference API locally:
 uv run uvicorn src.api:app --host 0.0.0.0 --port 8000
 
 ```
+
 The API will automatically detect and prioritize the `.onnx` version of the model if it exists in the weights directory.
 
 ### Docker Deployment
 
-To build and run the containerized API:
+By default, the project uses a lightweight `python:3.12-slim` image (via the standard `Dockerfile`) to ensure rapid API startup on a CPU. This is convenient for local testing on machines without dedicated hardware acceleration.
+
+**1. Build the image:**
 
 ```bash
-# Build the image
-docker build -t imbalance-cv-api .
-
-# Run the container
-docker run -p 8000:8000 imbalance-cv-api
+docker build -t yolo-api .
 
 ```
 
-The API endpoints:
-* `GET /health`: Basic health check.
-* `POST /predict`: Submit an image file for classification. Returns Top-1 prediction, confidence score, and full probability array.
+**2. Run the container:**
+*(Model weights are mounted via a volume to prevent bloating the container image size)*
+
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -e MODEL_CONFIG="/app/configs/yolo12.yaml" \
+  -v $(pwd)/weights:/app/weights \
+  --name cv-pipeline \
+  yolo-api
+
+```
+
+> **Note for Production (GPU):**
+> For deployment on servers with hardware acceleration, a dedicated `Dockerfile.gpu` based on the `nvidia/cuda` image is provided. To build the GPU-enabled container, run:
+> `docker build -f Dockerfile.gpu -t yolo-api-gpu .`
+
+---
+
+### API Endpoints & Usage
+
+* **`GET /health`**: Returns the API status.
+* **`POST /predict`**: Submit an image file (multipart/form-data) for classification.
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "filename": "test_image.jpg",
+  "prediction": {
+    "class_id": 3,
+    "label": "Cassava Mosaic Disease (CMD)",
+    "confidence": 0.9412
+  },
+  "probabilities": {
+    "0": 0.0104,
+    "1": 0.0215,
+    "2": 0.0118,
+    "3": 0.9412,
+    "4": 0.0151
+  }
+}
+
+```
+
+---
 
 For distributed training across multiple GPUs, utilize `torchrun` within the `uv` context. Example for a 2-GPU node training YOLO:
 
@@ -197,3 +242,4 @@ To execute the test suite:
 uv run pytest tests/
 
 ```
+

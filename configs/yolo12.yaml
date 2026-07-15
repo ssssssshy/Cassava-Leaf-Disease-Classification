@@ -6,7 +6,7 @@ path:
 model:
   name: "yolo12m" 
   num_classes: 5
-  pretrained: true
+  pretrained: false
 
 train:
   batch_size: 16

@@ -68,13 +68,20 @@ data/
 
 ## Installation
 
-This project strictly utilizes `uv` for Python environment and dependency management. Ensure `uv` is installed on your system prior to setup.
+This project strictly utilizes `uv` for Python environment and dependency management. To download the model weights, you also need **Git LFS** installed on your system.
 
 1. Clone the repository:
-
 ```bash
+# Make sure Git LFS is installed on your system
+# On Ubuntu/Debian: sudo apt-get install git-lfs
+# On macOS: brew install git-lfs
+
 git clone [https://github.com/ssssssshy/Cassava-Leaf-Disease-Classification.git](https://github.com/ssssssshy/Cassava-Leaf-Disease-Classification.git)
 cd Cassava-Leaf-Disease-Classification
+
+# Initialize Git LFS and pull the actual model weights (ONNX files)
+git lfs install
+git lfs pull
 
 ```
 

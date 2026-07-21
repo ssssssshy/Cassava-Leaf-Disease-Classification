@@ -1,0 +1,29 @@
+path:
+  train_csv: "data/raw/train.csv"
+  img_dir: "data/raw/train_images"
+  save_path: "weights/effdet_d4_best.pth"  
+
+model:
+  name: "tf_efficientdet_d4"  
+  num_classes: 5
+  pretrained: true
+
+train:
+  batch_size: 8               
+  epochs: 15
+  lr: 0.0001
+  focal_gamma: 2.0
+  seed: 42
+  img_size: 512               
+  num_workers: 4
+  val_size: 0.2
+  weight_decay: 0.01
+
+early_stopping:
+  patience: 4
+  min_delta: 0.001
+  mode: "max"
+
+wandb:
+  project_name: "cassava-disease"
+  run_name: "effdet-d4-run"   

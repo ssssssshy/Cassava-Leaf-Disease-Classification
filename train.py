@@ -118,7 +118,6 @@ def main():
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
-        val_len=val_len,
         criterion=criterion,
         optimizer=optimizer,
         scheduler=scheduler,

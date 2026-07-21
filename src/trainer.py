@@ -19,7 +19,6 @@ class ModelTrainer:
         model: torch.nn.Module,
         train_loader,
         val_loader,
-        val_len: int,
         criterion,
         optimizer,
         scheduler,
@@ -33,7 +32,6 @@ class ModelTrainer:
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.val_len = val_len
         self.criterion = criterion
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -81,8 +79,6 @@ class ModelTrainer:
             self.scaler.scale(loss).backward()
             self.scaler.unscale_(self.optimizer)
 
-            # ИЗМЕНЕНИЕ: Отбираем только параметры с requires_grad=True
-            # Это позволяет без ошибок замораживать backbone модели
             trainable_params = [p for p in self.model.parameters() if p.requires_grad]
             if trainable_params:
                 torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
@@ -98,7 +94,10 @@ class ModelTrainer:
             pbar.set_postfix({"Loss": f"{batch_loss:.4f}"})
 
         acc, f1, prec, rec, _ = self.metrics.compute()
-        avg_loss = running_loss / max(total_samples / self.train_loader.batch_size, 1)
+
+        avg_loss = running_loss / max(
+            total_samples / self.train_loader.batch_size, 1
+        )  # для val: max(total_samples, 1)
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
 
         return avg_loss, acc.item(), f1.item(), prec.item(), rec.item()
@@ -125,7 +124,10 @@ class ModelTrainer:
             self.metrics.update(outputs, labels)
 
         acc, f1, prec, rec, _ = self.metrics.compute()
-        avg_loss = running_loss / max(total_samples, 1)
+
+        avg_loss = running_loss / max(
+            total_samples / self.train_loader.batch_size, 1
+        )  # для val: max(total_samples, 1)
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
 
         return avg_loss, acc.item(), f1.item(), prec.item(), rec.item()

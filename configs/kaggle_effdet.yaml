@@ -25,5 +25,5 @@ early_stopping:
   mode: "max"
 
 wandb:
-  project_name: "cassava-disease"
+  project_name: "VisionShift-Cassava"
   run_name: "effdet-d4-run"   

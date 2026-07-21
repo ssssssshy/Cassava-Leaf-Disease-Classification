@@ -28,6 +28,8 @@ class ModelTrainer:
         use_amp: bool = True,
         rank: int = 0,
         world_size: int = 1,
+        use_mixup: bool = False,
+        mixup_alpha: float = 0.4,
     ):
         self.model = model
         self.train_loader = train_loader
@@ -48,6 +50,9 @@ class ModelTrainer:
         self.use_amp = use_amp and device.type == "cuda"
         self.scaler = GradScaler(self.amp_device_type, enabled=self.use_amp)
 
+        self.use_mixup = use_mixup
+        self.mixup_alpha = mixup_alpha
+
         if self.is_main:
             save_dir = os.path.dirname(self.save_path)
             if save_dir:
@@ -55,6 +60,20 @@ class ModelTrainer:
 
     def _unwrap_model(self) -> torch.nn.Module:
         return self.model.module if isinstance(self.model, DDP) else self.model
+
+    def _mixup_data(self, x: torch.Tensor, y: torch.Tensor):
+        if self.mixup_alpha > 0:
+            dist = torch.distributions.beta.Beta(self.mixup_alpha, self.mixup_alpha)
+            lam = dist.sample().item()
+        else:
+            lam = 1.0
+
+        batch_size = x.size(0)
+        index = torch.randperm(batch_size, device=x.device)
+
+        mixed_x = lam * x + (1 - lam) * x[index, :]
+        y_a, y_b = y, y[index]
+        return mixed_x, y_a, y_b, lam
 
     def _train_epoch(self, epoch: int):
         self.model.train()
@@ -72,9 +91,22 @@ class ModelTrainer:
 
             self.optimizer.zero_grad(set_to_none=True)
 
+            apply_mixup = self.use_mixup and torch.rand(1).item() > 0.5
+
+            if apply_mixup:
+                inputs, targets_a, targets_b, lam = self._mixup_data(images, labels)
+            else:
+                inputs = images
+
             with autocast(self.amp_device_type, enabled=self.use_amp):
-                outputs = self.model(images)
-                loss = self.criterion(outputs, labels)
+                outputs = self.model(inputs)
+
+                if apply_mixup:
+                    loss = lam * self.criterion(outputs, targets_a) + (
+                        1 - lam
+                    ) * self.criterion(outputs, targets_b)
+                else:
+                    loss = self.criterion(outputs, labels)
 
             self.scaler.scale(loss).backward()
             self.scaler.unscale_(self.optimizer)
@@ -90,7 +122,11 @@ class ModelTrainer:
             running_loss += loss.item() * batch_samples
             total_samples += batch_samples
 
-            self.metrics.update(outputs.detach(), labels)
+            if apply_mixup:
+                dominant_labels = targets_a if lam > 0.5 else targets_b
+                self.metrics.update(outputs.detach(), dominant_labels)
+            else:
+                self.metrics.update(outputs.detach(), labels)
 
             current_avg_loss = running_loss / total_samples
             pbar.set_postfix({"Loss": f"{current_avg_loss:.4f}"})

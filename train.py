@@ -126,6 +126,7 @@ def main():
         save_path=cfg.path.save_path,
         rank=rank,
         world_size=world_size,
+        use_mixup=True,
     )
 
     history = trainer.fit(epochs=cfg.train.epochs, early_stopper=early_stopper)

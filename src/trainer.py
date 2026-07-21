@@ -86,18 +86,18 @@ class ModelTrainer:
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
-            batch_loss = loss.item()
-            running_loss += batch_loss
-            total_samples += labels.size(0)
+            batch_samples = labels.size(0)
+            running_loss += loss.item() * batch_samples
+            total_samples += batch_samples
 
             self.metrics.update(outputs.detach(), labels)
-            pbar.set_postfix({"Loss": f"{batch_loss:.4f}"})
+
+            current_avg_loss = running_loss / total_samples
+            pbar.set_postfix({"Loss": f"{current_avg_loss:.4f}"})
 
         acc, f1, prec, rec, _ = self.metrics.compute()
 
-        avg_loss = running_loss / max(
-            total_samples / self.train_loader.batch_size, 1
-        )  # для val: max(total_samples, 1)
+        avg_loss = running_loss / max(total_samples, 1)
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
 
         return avg_loss, acc.item(), f1.item(), prec.item(), rec.item()
@@ -121,13 +121,15 @@ class ModelTrainer:
             batch_samples = labels.size(0)
             running_loss += loss.item() * batch_samples
             total_samples += batch_samples
+
             self.metrics.update(outputs, labels)
+
+            current_avg_loss = running_loss / total_samples
+            pbar.set_postfix({"Loss": f"{current_avg_loss:.4f}"})
 
         acc, f1, prec, rec, _ = self.metrics.compute()
 
-        avg_loss = running_loss / max(
-            total_samples / self.train_loader.batch_size, 1
-        )  # для val: max(total_samples, 1)
+        avg_loss = running_loss / max(total_samples, 1)
         avg_loss = reduce_mean(avg_loss, self.world_size, self.device)
 
         return avg_loss, acc.item(), f1.item(), prec.item(), rec.item()

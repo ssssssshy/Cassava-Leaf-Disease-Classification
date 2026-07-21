@@ -27,6 +27,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "onnx>=1.22.0",
     "onnxruntime>=1.27.0",
+    "effdet>=0.4.1",
 ]
 
 [[tool.uv.index]]
